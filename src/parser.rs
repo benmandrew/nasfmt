@@ -36,12 +36,10 @@ fn parse_line(line: &str) -> Line {
     if trimmed_end.is_empty() {
         return Line::Blank;
     }
-
     let trimmed = trimmed_end.trim_start();
     if trimmed.starts_with('%') {
         return Line::Preprocessor(trimmed_end.to_string());
     }
-
     let (code_raw, comment) = match find_comment_start(trimmed_end) {
         Some(pos) => {
             let raw = &trimmed_end[pos + 1..];
@@ -50,9 +48,7 @@ fn parse_line(line: &str) -> Line {
         }
         None => (trimmed_end, None),
     };
-
     let code = code_raw.trim_end();
-
     if code.trim().is_empty() {
         let indent = code_raw.len();
         return match comment {
@@ -60,7 +56,6 @@ fn parse_line(line: &str) -> Line {
             None => Line::Blank, // bare `;` with no text handled via empty CommentOnly below
         };
     }
-
     let starts_indented = line.starts_with(|c: char| c.is_whitespace());
     parse_statement(code.trim(), starts_indented, comment)
 }
@@ -68,7 +63,6 @@ fn parse_line(line: &str) -> Line {
 fn parse_statement(code: &str, starts_indented: bool, comment: Option<String>) -> Line {
     let (first, rest) = split_first_token(code);
     let first_lower = first.to_lowercase();
-
     if starts_indented {
         // Indented data definitions: `    label db ...` / `    label equ ...`
         // Detect by checking if second token is a known data directive.
@@ -90,7 +84,6 @@ fn parse_statement(code: &str, starts_indented: bool, comment: Option<String>) -
             comment,
         };
     }
-
     if SECTION_DIRECTIVES.contains(&first_lower.as_str()) {
         return Line::Statement {
             label: None,
@@ -98,19 +91,16 @@ fn parse_statement(code: &str, starts_indented: bool, comment: Option<String>) -
             comment,
         };
     }
-
-    if first.ends_with(':') {
-        let name = first[..first.len() - 1].to_string();
+    if let Some(name) = first.strip_suffix(':') {
         return Line::Statement {
             label: Some(Label {
-                name,
+                name: name.to_string(),
                 has_colon: true,
             }),
             body: optional_body(rest),
             comment,
         };
     }
-
     Line::Statement {
         label: Some(Label {
             name: first.to_string(),
@@ -157,17 +147,18 @@ fn split_operands(s: &str) -> Vec<String> {
     let mut in_string = false;
     let mut string_char = '"';
     let mut chars = s.chars().peekable();
-
     while let Some(c) = chars.next() {
         if in_string {
             current.push(c);
             if c == string_char {
                 in_string = false;
-            } else if c == '\\' && string_char != '\''
-                && let Some(&next) = chars.peek() {
-                    current.push(next);
-                    chars.next();
-                }
+            } else if c == '\\'
+                && string_char != '\''
+                && let Some(&next) = chars.peek()
+            {
+                current.push(next);
+                chars.next();
+            }
         } else {
             match c {
                 '"' | '\'' | '`' => {
@@ -191,7 +182,6 @@ fn split_operands(s: &str) -> Vec<String> {
             }
         }
     }
-
     let last = current.trim().to_string();
     if !last.is_empty() {
         operands.push(last);
