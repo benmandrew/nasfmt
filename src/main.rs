@@ -1,4 +1,5 @@
 use clap::Parser;
+use colored::Colorize;
 use similar::TextDiff;
 use std::process;
 
@@ -37,8 +38,25 @@ fn main() {
 }
 
 fn unified_diff(original: &str, formatted: &str, filename: &str) -> String {
-    TextDiff::from_lines(original, formatted)
+    let diff = TextDiff::from_lines(original, formatted)
         .unified_diff()
         .header(filename, filename)
-        .to_string()
+        .to_string();
+    let mut output = diff
+        .lines()
+        .map(|line| {
+            if line.starts_with('+') && !line.starts_with("+++") {
+                line.green().to_string()
+            } else if line.starts_with('-') && !line.starts_with("---") {
+                line.red().to_string()
+            } else if line.starts_with('@') {
+                line.cyan().to_string()
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    output.push('\n');
+    output
 }

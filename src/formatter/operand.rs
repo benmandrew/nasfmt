@@ -60,10 +60,12 @@ where
         if nc == quote {
             break;
         }
-        if nc == '\\' && quote != '\''
-            && let Some((_, ec)) = chars.next() {
-                result.push(ec);
-            }
+        if nc == '\\'
+            && quote != '\''
+            && let Some((_, ec)) = chars.next()
+        {
+            result.push(ec);
+        }
     }
 }
 
