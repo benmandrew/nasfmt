@@ -1,5 +1,7 @@
 # nasfmt
 
+![Coverage](docs/coverage.svg)
+
 Code formatter for NASM x86-64 assembly.
 
 ## Install
