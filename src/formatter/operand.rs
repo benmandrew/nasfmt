@@ -99,6 +99,14 @@ fn format_mem_expr(s: &str) -> String {
                 }
             }
             _ if c.is_alphanumeric() || matches!(c, '_' | '$' | '.' | '@') => {
+                // Preserve space between adjacent word tokens (e.g. `rel msg`)
+                if result
+                    .chars()
+                    .last()
+                    .is_some_and(|lc| lc.is_alphanumeric() || matches!(lc, '_' | '$' | '.' | '@'))
+                {
+                    result.push(' ');
+                }
                 let start = i;
                 let mut end = i + c.len_utf8();
                 while let Some(&(j, nc)) = chars.peek() {
@@ -128,5 +136,152 @@ fn format_token(s: &str) -> String {
         lower
     } else {
         s.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ops(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    // --- format_token ---
+
+    #[test]
+    fn token_register_lowercased() {
+        assert_eq!(format_token("RAX"), "rax");
+    }
+
+    #[test]
+    fn token_already_lowercase_register() {
+        assert_eq!(format_token("rax"), "rax");
+    }
+
+    #[test]
+    fn token_non_register_symbol_preserved() {
+        assert_eq!(format_token("MyLabel"), "MyLabel");
+    }
+
+    #[test]
+    fn token_size_prefix_lowercased() {
+        assert_eq!(format_token("BYTE"), "byte");
+    }
+
+    #[test]
+    fn token_number_unchanged() {
+        assert_eq!(format_token("42"), "42");
+    }
+
+    #[test]
+    fn token_hex_lowercase_unchanged() {
+        assert_eq!(format_token("0xff"), "0xff");
+    }
+
+    // --- format_operands ---
+
+    #[test]
+    fn operands_empty_list() {
+        assert_eq!(format_operands(&[]), "");
+    }
+
+    #[test]
+    fn operands_single_register() {
+        assert_eq!(format_operands(&ops(&["rax"])), "rax");
+    }
+
+    #[test]
+    fn operands_two_registers() {
+        assert_eq!(format_operands(&ops(&["rax", "rbx"])), "rax, rbx");
+    }
+
+    #[test]
+    fn operands_three_items() {
+        assert_eq!(
+            format_operands(&ops(&["rax", "rbx", "rcx"])),
+            "rax, rbx, rcx"
+        );
+    }
+
+    #[test]
+    fn operands_uppercase_register_lowercased() {
+        assert_eq!(format_operands(&ops(&["RAX", "RBX"])), "rax, rbx");
+    }
+
+    #[test]
+    fn operands_non_register_symbol_preserved() {
+        assert_eq!(format_operands(&ops(&["MyLabel"])), "MyLabel");
+    }
+
+    // --- size prefix ---
+
+    #[test]
+    fn operands_size_prefix_byte() {
+        assert_eq!(format_operands(&ops(&["byte [rax]"])), "byte [rax]");
+    }
+
+    #[test]
+    fn operands_size_prefix_qword() {
+        assert_eq!(
+            format_operands(&ops(&["qword [rbp - 8]"])),
+            "qword [rbp - 8]"
+        );
+    }
+
+    #[test]
+    fn operands_size_prefix_uppercase_lowercased() {
+        assert_eq!(format_operands(&ops(&["BYTE [RAX]"])), "byte [rax]");
+    }
+
+    // --- memory references ---
+
+    #[test]
+    fn operands_plain_memory_ref() {
+        assert_eq!(format_operands(&ops(&["[rax]"])), "[rax]");
+    }
+
+    #[test]
+    fn operands_memory_arithmetic_adds_spaces() {
+        assert_eq!(format_operands(&ops(&["[rbp-8]"])), "[rbp - 8]");
+    }
+
+    #[test]
+    fn operands_memory_multiplication() {
+        assert_eq!(format_operands(&ops(&["[rax+rbx*4]"])), "[rax + rbx * 4]");
+    }
+
+    #[test]
+    fn operands_memory_complex_expression() {
+        assert_eq!(format_operands(&ops(&["[rbp - 8]"])), "[rbp - 8]");
+    }
+
+    #[test]
+    fn operands_unary_minus() {
+        assert_eq!(format_operands(&ops(&["-1"])), "-1");
+    }
+
+    // --- adjacent tokens in memory (rel, abs, nosplit) ---
+
+    #[test]
+    fn operands_rel_keyword_space_preserved() {
+        assert_eq!(format_operands(&ops(&["[rel msg]"])), "[rel msg]");
+    }
+
+    #[test]
+    fn operands_abs_keyword_space_preserved() {
+        assert_eq!(format_operands(&ops(&["[abs label]"])), "[abs label]");
+    }
+
+    // --- string literals ---
+
+    #[test]
+    fn operands_double_quoted_string() {
+        assert_eq!(format_operands(&ops(&["\"Hello\""])), "\"Hello\"");
+    }
+
+    #[test]
+    fn operands_string_with_uppercase_not_changed() {
+        assert_eq!(format_operands(&ops(&["\"HELLO\""])), "\"HELLO\"");
     }
 }
