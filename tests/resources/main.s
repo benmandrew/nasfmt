@@ -44,7 +44,7 @@ game_loop:
     mov     [board + rax], dl
     call    swap_player
     mov     [current_player_char], al
-                                    ; call reset_cursor
+    ; call reset_cursor
     mov     rdi, board
     call    draw_board
     mov     rdi, board
@@ -88,14 +88,14 @@ get_input:
     mov     rbx, rdi
     push    r12
     mov     r12, 0
-                                    ; Prompt user
+    ; Prompt user
     mov     rax, 1                    ; syscall: write
     mov     rdi, 1                    ; fd = stdout
     mov     rsi, prompt
     mov     rdx, prompt_len
     syscall
 get_input_start:
-                                    ; Get user input
+    ; Get user input
     mov     rax, 0                    ; syscall: read
     mov     rdi, 0                    ; fd = stdin
     mov     rsi, input_char

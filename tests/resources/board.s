@@ -18,13 +18,13 @@ global check_draw
 ; 0xE2, 0x94, 0xBC = ┼
 
 section .data
-                                 ; ┌─┬─┐
+    ; ┌─┬─┐
     board_top       db  0xE2, 0x94, 0x8C, 0xE2, 0x94, 0x80, 0xE2, 0x94, 0xAC, 0xE2, 0x94, 0x80, 0xE2, 0x94, 0xAC, 0xE2, 0x94, 0x80, 0xE2, 0x94, 0x90, 10
     board_top_len   equ $ - board_top
-                                 ; ├─┼─┤
+    ; ├─┼─┤
     board_middle        db  0xE2, 0x94, 0x9C, 0xE2, 0x94, 0x80, 0xE2, 0x94, 0xBC, 0xE2, 0x94, 0x80, 0xE2, 0x94, 0xBC, 0xE2, 0x94, 0x80, 0xE2, 0x94, 0xA4, 10
     board_middle_len    equ $ - board_middle
-                                 ; └─┴─┘
+    ; └─┴─┘
     board_bottom        db  0xE2, 0x94, 0x94, 0xE2, 0x94, 0x80, 0xE2, 0x94, 0xB4, 0xE2, 0x94, 0x80, 0xE2, 0x94, 0xB4, 0xE2, 0x94, 0x80, 0xE2, 0x94, 0x98, 10
     board_bottom_len    equ $ - board_bottom
     board_vertical      db  0xE2, 0x94, 0x82
@@ -52,8 +52,8 @@ copy_vertical_lines_loop:
     inc     r8
     cmp     r8, 4
     jl      copy_vertical_lines_loop
-                                 ; Copy board data into row, spaced between the
-                                 ; vertical bars
+    ; Copy board data into row, spaced between the
+    ; vertical bars
     mov     al, [r9]
     mov     byte [row + 3], al
     mov     al, [r9 + 1]
@@ -75,42 +75,42 @@ copy_vertical_lines_loop:
 ;   None
 draw_board:
     mov     r8, rdi
-                                 ; Draw the top row
+    ; Draw the top row
     mov     rax, 1                   ; syscall: write
     mov     rdi, 1                   ; fd = stdout
     mov     rsi, board_top
     mov     rdx, board_top_len
     syscall
-                                 ; Draw the top dynamic row
+    ; Draw the top dynamic row
     mov     rdi, r8
     push    r8
     call    draw_board_row
     pop     r8
-                                 ; Draw the top-middle static row
+    ; Draw the top-middle static row
     mov     rax, 1                   ; syscall: write
     mov     rdi, 1                   ; fd = stdout
     mov     rsi, board_middle
     mov     rdx, board_middle_len
     syscall
-                                 ; Draw the middle dynamic row
+    ; Draw the middle dynamic row
     mov     rdi, r8
     add     rdi, 3
     push    r8
     call    draw_board_row
     pop     r8
-                                 ; Draw the bottom-middle static row
+    ; Draw the bottom-middle static row
     mov     rax, 1                   ; syscall: write
     mov     rdi, 1                   ; fd = stdout
     mov     rsi, board_middle
     mov     rdx, board_middle_len
     syscall
-                                 ; Draw bottom dynamic row
+    ; Draw bottom dynamic row
     mov     rdi, r8
     add     rdi, 6
     push    r8
     call    draw_board_row
     pop     r8
-                                 ; Draw the bottom static row
+    ; Draw the bottom static row
     mov     rax, 1                   ; syscall: write
     mov     rdi, 1                   ; fd = stdout
     mov     rsi, board_bottom

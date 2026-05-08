@@ -264,6 +264,81 @@ fn test_format_bare_semicolon() {
 }
 
 #[test]
+fn test_standalone_comment_before_label_not_indented() {
+    // Comment describing a function — should sit at column 0 like the label
+    let input = "    ; entry point\nmain:\n    ret\n";
+    let result = format_string(input);
+    assert!(
+        result.starts_with("; entry point\n"),
+        "comment before label should have no indent, got: {:?}",
+        result
+    );
+}
+
+#[test]
+fn test_standalone_comment_before_instruction_indented() {
+    // Comment describing a block of instructions — should align with the mnemonic
+    let input = "main:\n; initialise\n    mov rax, 0\n    ret\n";
+    let result = format_string(input);
+    assert!(
+        result.contains("    ; initialise\n"),
+        "comment before instruction should be indented 4 spaces, got: {:?}",
+        result
+    );
+}
+
+#[test]
+fn test_standalone_comment_before_label_across_blank_line() {
+    // Blank line between comment and label — comment should still be unindented
+    let input = "; describe function\n\nmain:\n    ret\n";
+    let result = format_string(input);
+    assert!(
+        result.starts_with("; describe function\n"),
+        "comment before label (across blank) should have no indent, got: {:?}",
+        result
+    );
+}
+
+#[test]
+fn test_inline_comment_continuation_indent_preserved() {
+    // The second line of a wrapped inline comment must not be normalised to
+    // the mnemonic indent; it should stay aligned with the `;` above it.
+    let col = " ".repeat(38);
+    let input = format!(
+        "    cmp     r12, 0                    ; Only notify of invalid input the first\n{col}; time\n    jne     somewhere\n",
+    );
+    let result = format_string(&input);
+    let cont = result.lines().nth(1).unwrap_or("");
+    assert_eq!(
+        cont,
+        format!("{col}; time"),
+        "continuation indent should be preserved at column 38"
+    );
+}
+
+#[test]
+fn test_standalone_comment_before_section_directive_not_indented() {
+    let input = "    ; data section\nsection .data\n";
+    let result = format_string(input);
+    assert!(
+        result.starts_with("; data section\n"),
+        "comment before section directive should have no indent, got: {:?}",
+        result
+    );
+}
+
+#[test]
+fn test_standalone_comment_before_preprocessor_not_indented() {
+    let input = "    ; define size\n%define SIZE 10\n";
+    let result = format_string(input);
+    assert!(
+        result.starts_with("; define size\n"),
+        "comment before preprocessor should have no indent, got: {:?}",
+        result
+    );
+}
+
+#[test]
 fn test_format_data_block_aligns_labels_and_directives() {
     // msg (3), newline (7) → label_width = round_up_4(8) = 8
     // db (2) → mnemonic_width = round_up_4(3) = 4

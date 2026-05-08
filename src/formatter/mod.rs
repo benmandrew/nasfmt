@@ -91,6 +91,50 @@ fn compute_file_metrics(lines: &[Line]) -> FileMetrics {
     }
 }
 
+/// Returns true when the CommentOnly at `pos` is a wrapped continuation of an
+/// inline comment on a preceding Statement. Continuations have a large indent
+/// (> INDENT, matching the comment column) and no blank line separating them
+/// from the Statement. Multi-line chains (`stmt ; a` / `; b` / `; c`) are also
+/// recognised.
+fn is_comment_continuation(lines: &[Line], pos: usize, indent: usize) -> bool {
+    if indent <= INDENT {
+        return false;
+    }
+    for ln in lines[..pos].iter().rev() {
+        match ln {
+            Line::Blank => return false,
+            Line::Statement {
+                comment: Some(_), ..
+            } => return true,
+            Line::CommentOnly { .. } => {}
+            _ => return false,
+        }
+    }
+    false
+}
+
+/// Returns the indent that a standalone comment at `pos` should use, based on
+/// the next non-blank, non-comment line. Returns `None` when there is no such
+/// line (end of file), so the caller can fall back to the original indent.
+fn comment_indent_for(lines: &[Line], pos: usize) -> Option<usize> {
+    for ln in lines[pos + 1..].iter() {
+        match ln {
+            Line::Blank | Line::CommentOnly { .. } => continue,
+            Line::Preprocessor(_) => return Some(0),
+            Line::Statement {
+                label: Some(lbl), ..
+            } if lbl.has_colon => return Some(0),
+            Line::Statement {
+                label: None,
+                body: Some(b),
+                ..
+            } if b.is_section_level() => return Some(0),
+            _ => return Some(INDENT),
+        }
+    }
+    None
+}
+
 pub fn format(lines: &[Line]) -> String {
     let FileMetrics {
         code_mnemonic_width,
@@ -98,7 +142,7 @@ pub fn format(lines: &[Line]) -> String {
     } = compute_file_metrics(lines);
     let mut output = String::new();
     let mut current_block: Vec<&Line> = vec![];
-    for ln in lines {
+    for (i, ln) in lines.iter().enumerate() {
         match ln {
             Line::Blank => {
                 block::flush_block(
@@ -126,7 +170,12 @@ pub fn format(lines: &[Line]) -> String {
                     code_mnemonic_width,
                     code_comment_col,
                 );
-                output.push_str(&line::format_standalone_comment(*indent, text));
+                let effective_indent = if is_comment_continuation(lines, i, *indent) {
+                    *indent
+                } else {
+                    comment_indent_for(lines, i).unwrap_or(*indent)
+                };
+                output.push_str(&line::format_standalone_comment(effective_indent, text));
             }
             Line::Statement {
                 label: Some(lbl),
