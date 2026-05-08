@@ -6,7 +6,7 @@ use std::process::Command;
 const EXAMPLES: &[&str] = &["board.s", "hello.s", "main.s", "memory.s", "util.s"];
 
 fn get_example_path(name: &str) -> String {
-    format!("examples/{}", name)
+    format!("tests/resources/{}", name)
 }
 
 fn run_nasfmt(args: &[&str]) -> std::process::Output {
@@ -73,7 +73,7 @@ fn test_nonexistent_file_exits_2() {
 
 #[test]
 fn test_check_clean_file_exits_0() {
-    let output = run_nasfmt(&["examples/memory.s", "--check"]);
+    let output = run_nasfmt(&["tests/resources/memory.s", "--check"]);
     assert_eq!(output.status.code(), Some(0));
 }
 
