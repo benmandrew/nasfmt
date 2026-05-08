@@ -8,7 +8,7 @@ mod formatter;
 mod parser;
 
 #[derive(Parser)]
-#[command(name = "nasmlint", about = "NASM x86-64 assembly formatter")]
+#[command(name = "nasfmt", about = "NASM x86-64 assembly formatter")]
 struct Cli {
     file: std::path::PathBuf,
     #[arg(long, help = "Check formatting; exit 1 with diff if changes needed")]
@@ -18,7 +18,7 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
     let source = std::fs::read_to_string(&cli.file).unwrap_or_else(|e| {
-        eprintln!("nasmlint: {}: {}", cli.file.display(), e);
+        eprintln!("nasfmt: {}: {}", cli.file.display(), e);
         process::exit(2);
     });
     let lines = parser::parse(&source);

@@ -9,19 +9,19 @@ fn get_example_path(name: &str) -> String {
     format!("examples/{}", name)
 }
 
-fn run_nasmlint(args: &[&str]) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_nasmlint"))
+fn run_nasfmt(args: &[&str]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_nasfmt"))
         .args(args)
         .output()
-        .expect("Failed to run nasmlint")
+        .expect("Failed to run nasfmt")
 }
 
 fn format_string(input: &str) -> String {
     let mut tmp = tempfile::Builder::new().suffix(".s").tempfile().unwrap();
     tmp.write_all(input.as_bytes()).unwrap();
     let path = tmp.path().to_str().unwrap().to_string();
-    let output = run_nasmlint(&[&path]);
-    assert!(output.status.success(), "nasmlint failed on: {:?}", input);
+    let output = run_nasfmt(&[&path]);
+    assert!(output.status.success(), "nasfmt failed on: {:?}", input);
     String::from_utf8(output.stdout).unwrap()
 }
 
@@ -36,10 +36,10 @@ fn test_examples_format_clean() {
             "Example file {} does not exist",
             path
         );
-        let output = run_nasmlint(&[&path, "--check"]);
+        let output = run_nasfmt(&[&path, "--check"]);
         assert!(
             output.status.success(),
-            "nasmlint failed or formatting needed for {}\nstdout: {}\nstderr: {}",
+            "nasfmt failed or formatting needed for {}\nstdout: {}\nstderr: {}",
             path,
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
@@ -52,12 +52,12 @@ fn test_examples_format_idempotent() {
     for &file in EXAMPLES {
         let path = get_example_path(file);
         let orig = fs::read_to_string(&path).expect("Failed to read example file");
-        let output = run_nasmlint(&[&path]);
-        assert!(output.status.success(), "nasmlint failed for {}", path);
+        let output = run_nasfmt(&[&path]);
+        assert!(output.status.success(), "nasfmt failed for {}", path);
         let formatted = String::from_utf8_lossy(&output.stdout);
         assert_eq!(
             orig, formatted,
-            "nasmlint output is not idempotent for {}",
+            "nasfmt output is not idempotent for {}",
             path
         );
     }
@@ -67,13 +67,13 @@ fn test_examples_format_idempotent() {
 
 #[test]
 fn test_nonexistent_file_exits_2() {
-    let output = run_nasmlint(&["/nonexistent/path/to/file.s"]);
+    let output = run_nasfmt(&["/nonexistent/path/to/file.s"]);
     assert_eq!(output.status.code(), Some(2));
 }
 
 #[test]
 fn test_check_clean_file_exits_0() {
-    let output = run_nasmlint(&["examples/memory.s", "--check"]);
+    let output = run_nasfmt(&["examples/memory.s", "--check"]);
     assert_eq!(output.status.code(), Some(0));
 }
 
@@ -82,7 +82,7 @@ fn test_check_dirty_file_exits_1() {
     let mut tmp = tempfile::Builder::new().suffix(".s").tempfile().unwrap();
     tmp.write_all(b"    MOV RAX, RBX\n    RET\n").unwrap();
     let path = tmp.path().to_str().unwrap().to_string();
-    let check_output = run_nasmlint(&[&path, "--check"]);
+    let check_output = run_nasfmt(&[&path, "--check"]);
     assert_eq!(
         check_output.status.code(),
         Some(1),
