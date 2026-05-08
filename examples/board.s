@@ -42,16 +42,16 @@ section .text
 ; Returns:
 ;   None
 draw_board_row:
-    mov r9, rdi
-    xor r8, r8
+    mov     r9, rdi
+    xor     r8, r8
 copy_vertical_lines_loop:
-    lea rdi, [row + r8 * 4]
-    mov rsi, board_vertical
-    mov rcx, board_vertical_len
-    rep movsb
-    inc r8
-    cmp r8, 4
-    jl  copy_vertical_lines_loop
+    lea     rdi, [row + r8 * 4]
+    mov     rsi, board_vertical
+    mov     rcx, board_vertical_len
+    rep     movsb
+    inc     r8
+    cmp     r8, 4
+    jl      copy_vertical_lines_loop
                                  ; Copy board data into row, spaced between the
                                  ; vertical bars
     mov     al, [r9]
@@ -74,10 +74,10 @@ copy_vertical_lines_loop:
 ; Returns:
 ;   None
 draw_board:
-    mov r8, rdi
+    mov     r8, rdi
                                  ; Draw the top row
-    mov     rax, 1                ; syscall: write
-    mov     rdi, 1                ; fd = stdout
+    mov     rax, 1                   ; syscall: write
+    mov     rdi, 1                   ; fd = stdout
     mov     rsi, board_top
     mov     rdx, board_top_len
     syscall
@@ -124,12 +124,12 @@ draw_board:
 ; Returns:
 ;   None
 init_board:
-    xor rcx, rcx
+    xor     rcx, rcx
 init_board_loop:
-    mov byte [rdi + rcx], 0x20
-    inc rcx
-    cmp rcx, 9
-    jl  init_board_loop
+    mov     byte [rdi + rcx], 0x20
+    inc     rcx
+    cmp     rcx, 9
+    jl      init_board_loop
     ret
 
 ; Check for win line
@@ -150,7 +150,7 @@ check_win:
     mov     rdi, rbx
     call    check_diagonal_win
 check_win_end:
-    pop rbx
+    pop     rbx
     ret
 
 ; Check for draw
@@ -159,17 +159,17 @@ check_win_end:
 ; Returns:
 ;   rax - 0x00 if no draw, 0x01 if there is a draw
 check_draw:
-    xor rcx, rcx
+    xor     rcx, rcx
 check_draw_loop:
-    cmp rcx, 9
-    je  check_draw_end
-    inc rcx
-    cmp byte [rdi + rcx - 1], 0x20
-    jne check_draw_loop
-    mov rax, 0x00
+    cmp     rcx, 9
+    je      check_draw_end
+    inc     rcx
+    cmp     byte [rdi + rcx - 1], 0x20
+    jne     check_draw_loop
+    mov     rax, 0x00
     ret
 check_draw_end:
-    mov rax, 0x01
+    mov     rax, 0x01
     ret
 
 ; Check for horizontal win line
@@ -178,26 +178,26 @@ check_draw_end:
 ; Returns:
 ;   rax - 0x00 if no win, and the character that won otherwise ('X' or 'O')
 check_horizontal_win:
-    xor rcx, rcx
-    mov r9, 3       ; Multiplier for address computation
+    xor     rcx, rcx
+    mov     r9, 3                    ; Multiplier for address computation
 check_horizontal_win_loop:
     cmp     rcx, 3
     je      check_horizontal_no_win
-    mov     rax, rcx                     ; Compute address, rdi+rcx*3
+    mov     rax, rcx                 ; Compute address, rdi+rcx*3
     inc     rcx
-    mul     r9                           ; Multiple rax by r9
+    mul     r9                       ; Multiple rax by r9
     add     rax, rdi
     mov     r8b, [rax]
-    cmp     r8b, 0x20                    ; Is first char a space?
+    cmp     r8b, 0x20                ; Is first char a space?
     je      check_horizontal_win_loop
-    cmp     r8b, [rax + 1]               ; Are the first and second chars equal?
+    cmp     r8b, [rax + 1]           ; Are the first and second chars equal?
     jne     check_horizontal_win_loop
-    cmp     r8b, [rax + 2]               ; Are the first and third chars equal?
+    cmp     r8b, [rax + 2]           ; Are the first and third chars equal?
     jne     check_horizontal_win_loop
-    movzx   rax, r8b                     ; Zero-extend to fill register
+    movzx   rax, r8b                 ; Zero-extend to fill register
     ret
 check_horizontal_no_win:
-    mov rax, 0x00
+    mov     rax, 0x00
     ret
 
 ; Check for vertical win line
@@ -206,22 +206,22 @@ check_horizontal_no_win:
 ; Returns:
 ;   rax - 0x00 if no win, and the character that won otherwise ('X' or 'O')
 check_vertical_win:
-    xor rcx, rcx
+    xor     rcx, rcx
 check_vertical_win_loop:
     cmp     rcx, 3
     je      check_vertical_no_win
     inc     rcx
     mov     r8b, [rdi + rcx - 1]
-    cmp     r8b, 0x20                  ; Is first char a space?
+    cmp     r8b, 0x20                ; Is first char a space?
     je      check_vertical_win_loop
-    cmp     r8b, [rdi + rcx + 2]       ; Are the first and second chars equal?
+    cmp     r8b, [rdi + rcx + 2]     ; Are the first and second chars equal?
     jne     check_vertical_win_loop
-    cmp     r8b, [rdi + rcx + 5]       ; Are the first and third chars equal?
+    cmp     r8b, [rdi + rcx + 5]     ; Are the first and third chars equal?
     jne     check_vertical_win_loop
-    movzx   rax, r8b                   ; Zero-extend to fill register
+    movzx   rax, r8b                 ; Zero-extend to fill register
     ret
 check_vertical_no_win:
-    mov rax, 0x00
+    mov     rax, 0x00
     ret
 
 ; Check for vertical win line
@@ -231,13 +231,13 @@ check_vertical_no_win:
 ;   rax - 0x00 if no win, and the character that won otherwise ('X' or 'O')
 check_diagonal_win:    ; Check top-left to bottom-right diagonal
     mov     r8b, [rdi]
-    cmp     r8b, 0x20                   ; Is first char a space?
+    cmp     r8b, 0x20                ; Is first char a space?
     je      check_diagonal_win_tr_bl
-    cmp     r8b, [rdi + 4]              ; Are the first and second chars equal?
+    cmp     r8b, [rdi + 4]           ; Are the first and second chars equal?
     jne     check_diagonal_win_tr_bl
-    cmp     r8b, [rdi + 8]              ; Are the first and third chars equal?
+    cmp     r8b, [rdi + 8]           ; Are the first and third chars equal?
     jne     check_diagonal_win_tr_bl
-    movzx   rax, r8b                    ; Zero-extend to fill register
+    movzx   rax, r8b                 ; Zero-extend to fill register
     ret
 check_diagonal_win_tr_bl:    ; Check top-right to bottom-left diagonal
     mov     r8b, [rdi + 2]
@@ -250,5 +250,5 @@ check_diagonal_win_tr_bl:    ; Check top-right to bottom-left diagonal
     movzx   rax, r8b                 ; Zero-extend to fill register
     ret
 check_diagonal_no_win:
-    mov rax, 0x00
+    mov     rax, 0x00
     ret

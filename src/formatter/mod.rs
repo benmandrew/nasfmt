@@ -6,22 +6,126 @@ mod line;
 mod operand;
 mod util;
 
+use operand::format_operands;
+use util::{INDENT, round_up_4};
+
+struct FileMetrics {
+    /// Mnemonic column width for all instruction (code) blocks in the file.
+    pub code_mnemonic_width: usize,
+    /// Comment column for all instruction (code) blocks in the file.
+    /// 0 means no inline comments anywhere in code blocks.
+    pub code_comment_col: usize,
+}
+
+fn is_code_block_line(ln: &Line) -> bool {
+    match ln {
+        Line::Blank | Line::Preprocessor(_) | Line::CommentOnly { .. } => false,
+        Line::Statement {
+            label: Some(lbl), ..
+        } if lbl.has_colon => false,
+        // Data labels (no colon) are not code lines
+        Line::Statement { label: Some(_), .. } => false,
+        Line::Statement {
+            label: None,
+            body: Some(b),
+            ..
+        } if b.is_section_level() => false,
+        _ => true,
+    }
+}
+
+fn compute_file_metrics(lines: &[Line]) -> FileMetrics {
+    let max_mnemonic = lines
+        .iter()
+        .filter(|l| is_code_block_line(l))
+        .filter_map(|l| match l {
+            Line::Statement { body: Some(b), .. } => Some(b.mnemonic.len()),
+            _ => None,
+        })
+        .max()
+        .unwrap_or(0);
+    let code_mnemonic_width = round_up_4(max_mnemonic + 1);
+
+    let has_comments = lines.iter().filter(|l| is_code_block_line(l)).any(|l| {
+        matches!(
+            l,
+            Line::Statement {
+                comment: Some(_),
+                ..
+            }
+        )
+    });
+
+    // Comment column is derived only from lines that actually carry comments,
+    // so that uncommented lines with very long operands don't inflate the column.
+    let code_comment_col = if has_comments {
+        let max_content = lines
+            .iter()
+            .filter(|l| is_code_block_line(l))
+            .filter_map(|l| match l {
+                Line::Statement {
+                    body: Some(b),
+                    comment: Some(_),
+                    ..
+                } => {
+                    // When there are no operands, the mnemonic is NOT padded.
+                    let content = if b.operands.is_empty() {
+                        INDENT + b.mnemonic.len()
+                    } else {
+                        INDENT + code_mnemonic_width + format_operands(&b.operands).len()
+                    };
+                    Some(content)
+                }
+                _ => None,
+            })
+            .max()
+            .unwrap_or(0);
+        max_content + 4
+    } else {
+        0
+    };
+
+    FileMetrics {
+        code_mnemonic_width,
+        code_comment_col,
+    }
+}
+
 pub fn format(lines: &[Line]) -> String {
+    let FileMetrics {
+        code_mnemonic_width,
+        code_comment_col,
+    } = compute_file_metrics(lines);
     let mut output = String::new();
     let mut current_block: Vec<&Line> = vec![];
     for ln in lines {
         match ln {
             Line::Blank => {
-                block::flush_block(&mut output, &mut current_block);
+                block::flush_block(
+                    &mut output,
+                    &mut current_block,
+                    code_mnemonic_width,
+                    code_comment_col,
+                );
                 output.push('\n');
             }
             Line::Preprocessor(s) => {
-                block::flush_block(&mut output, &mut current_block);
+                block::flush_block(
+                    &mut output,
+                    &mut current_block,
+                    code_mnemonic_width,
+                    code_comment_col,
+                );
                 output.push_str(s);
                 output.push('\n');
             }
             Line::CommentOnly { indent, text } => {
-                block::flush_block(&mut output, &mut current_block);
+                block::flush_block(
+                    &mut output,
+                    &mut current_block,
+                    code_mnemonic_width,
+                    code_comment_col,
+                );
                 output.push_str(&line::format_standalone_comment(*indent, text));
             }
             Line::Statement {
@@ -29,7 +133,12 @@ pub fn format(lines: &[Line]) -> String {
                 body,
                 comment,
             } if lbl.has_colon => {
-                block::flush_block(&mut output, &mut current_block);
+                block::flush_block(
+                    &mut output,
+                    &mut current_block,
+                    code_mnemonic_width,
+                    code_comment_col,
+                );
                 output.push_str(&line::format_code_label(
                     lbl,
                     body.as_ref(),
@@ -41,7 +150,12 @@ pub fn format(lines: &[Line]) -> String {
                 body: Some(b),
                 comment,
             } if b.is_section_level() => {
-                block::flush_block(&mut output, &mut current_block);
+                block::flush_block(
+                    &mut output,
+                    &mut current_block,
+                    code_mnemonic_width,
+                    code_comment_col,
+                );
                 output.push_str(&line::format_section_directive(b, comment.as_deref()));
             }
             _ => {
@@ -49,6 +163,11 @@ pub fn format(lines: &[Line]) -> String {
             }
         }
     }
-    block::flush_block(&mut output, &mut current_block);
+    block::flush_block(
+        &mut output,
+        &mut current_block,
+        code_mnemonic_width,
+        code_comment_col,
+    );
     output
 }

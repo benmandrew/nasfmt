@@ -48,12 +48,12 @@ game_loop:
     mov     rdi, board
     call    draw_board
     mov     rdi, board
-    call    check_win         ; Check if there is a win
+    call    check_win                 ; Check if there is a win
     mov     rdi, rax
     cmp     rax, 0x00
     jne     game_loop_win
     mov     rdi, board
-    call    check_draw        ; Check if there is a draw
+    call    check_draw                ; Check if there is a draw
     cmp     rax, 0x00
     jne     game_loop_draw
     jmp     game_loop
@@ -70,12 +70,12 @@ game_loop_draw:
 ; Returns:
 ;   al - Next player's character
 swap_player:
-    cmp dl, 'X'
-    je  swap_player_end
-    mov al, 'X'
+    cmp     dl, 'X'
+    je      swap_player_end
+    mov     al, 'X'
     ret
 swap_player_end:
-    mov al, 'O'
+    mov     al, 'O'
     ret
 
 ; Get and validate the user's square choice
@@ -89,8 +89,8 @@ get_input:
     push    r12
     mov     r12, 0
                                     ; Prompt user
-    mov     rax, 1             ; syscall: write
-    mov     rdi, 1             ; fd = stdout
+    mov     rax, 1                    ; syscall: write
+    mov     rdi, 1                    ; fd = stdout
     mov     rsi, prompt
     mov     rdx, prompt_len
     syscall
@@ -116,11 +116,12 @@ get_input_start:
     pop     rbx
     ret
 invalid_input:
-    cmp     r12, 0              ; Only notify of invalid input the first time
+    cmp     r12, 0                    ; Only notify of invalid input the first
+                                      ; time
     jne     get_input_start
     mov     r12, 1
-    mov     rax, 1              ; syscall: write
-    mov     rdi, 1              ; fd = stdout
+    mov     rax, 1                    ; syscall: write
+    mov     rdi, 1                    ; fd = stdout
     mov     rsi, invalid
     mov     rdx, invalid_len
     syscall
@@ -132,8 +133,8 @@ invalid_input:
 ; Returns:
 ;   None
 reset_cursor:
-    mov     rax, 1                        ; syscall: write
-    mov     rdi, 1                        ; fd = stdout
+    mov     rax, 1                    ; syscall: write
+    mov     rdi, 1                    ; fd = stdout
     mov     rsi, reset_cursor_ansi
     mov     rdx, reset_cursor_ansi_len
     syscall
@@ -145,9 +146,9 @@ reset_cursor:
 ; Returns:
 ;   None
 print_win:
-    mov     [winner_char], dil    ; lowest 8 bits of rdi
-    mov     rax, 1                ; syscall: write
-    mov     rdi, 1                ; fd = stdout
+    mov     [winner_char], dil        ; lowest 8 bits of rdi
+    mov     rax, 1                    ; syscall: write
+    mov     rdi, 1                    ; fd = stdout
     mov     rsi, winner
     mov     rdx, winner_len
     syscall
@@ -177,8 +178,8 @@ print_draw:
     ret
 
 no_input_connected:
-    mov     rax, 1               ; syscall: write
-    mov     rdi, 1               ; fd = stdout
+    mov     rax, 1                    ; syscall: write
+    mov     rdi, 1                    ; fd = stdout
     mov     rsi, no_stdin
     mov     rdx, no_stdin_len
     syscall
@@ -186,6 +187,6 @@ no_input_connected:
 
 
 exit:
-    mov     rdi, 0     ; exit code
-    mov     rax, 60    ; syscall: exit
+    mov     rdi, 0                    ; exit code
+    mov     rax, 60                   ; syscall: exit
     syscall

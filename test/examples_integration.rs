@@ -201,11 +201,34 @@ fn test_format_aligns_comments_in_block() {
 }
 
 #[test]
-fn test_format_blank_lines_separate_alignment_blocks() {
-    // Two separate blocks → each aligned independently
+fn test_format_blank_lines_preserved() {
+    // Blank lines split blocks but alignment is computed across the whole file
     let input = "    push rbx\n\n    ret\n";
     let result = format_string(input);
     assert!(result.contains("\n\n"), "blank line should be preserved");
+}
+
+#[test]
+fn test_format_aligns_mnemonics_across_blank_lines() {
+    // push (4 chars) → mnemonic_width=8 for the whole file;
+    // mov in the second block must also use width 8
+    let input = "    push rbx\n\n    mov rax, 0\n";
+    let result = format_string(input);
+    assert_eq!(result, "    push    rbx\n\n    mov     rax, 0\n");
+}
+
+#[test]
+fn test_format_aligns_comments_across_blank_lines() {
+    // Both blocks share the same comment_col derived from the widest line in the file
+    let input = "    push rbx ; save\n\n    ret ; done\n";
+    let result = format_string(input);
+    let cols: Vec<usize> = result
+        .lines()
+        .filter(|l| l.contains(';'))
+        .map(|l| l.find(';').unwrap())
+        .collect();
+    assert!(cols.len() == 2, "expected two commented lines");
+    assert_eq!(cols[0], cols[1], "comment columns must match across blocks");
 }
 
 #[test]
