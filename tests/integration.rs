@@ -25,6 +25,19 @@ fn format_string(input: &str) -> String {
     String::from_utf8(output.stdout).unwrap()
 }
 
+fn format_string_upper(input: &str) -> String {
+    let mut tmp = tempfile::Builder::new().suffix(".s").tempfile().unwrap();
+    tmp.write_all(input.as_bytes()).unwrap();
+    let path = tmp.path().to_str().unwrap().to_string();
+    let output = run_nasfmt(&[&path, "--upper"]);
+    assert!(
+        output.status.success(),
+        "nasfmt --upper failed on: {:?}",
+        input
+    );
+    String::from_utf8(output.stdout).unwrap()
+}
+
 // ─── existing tests ────────────────────────────────────────────────────────
 
 #[test]
@@ -406,4 +419,97 @@ fn test_format_section_with_global_and_code() {
     assert!(result.contains("main:\n"));
     assert!(result.contains("    xor eax, eax\n"));
     assert!(result.contains("    ret\n"));
+}
+
+// ─── --upper flag tests ────────────────────────────────────────────────────
+
+#[test]
+fn test_upper_normalises_mnemonic() {
+    assert_eq!(format_string_upper("    ret\n"), "    RET\n");
+}
+
+#[test]
+fn test_upper_normalises_register() {
+    assert_eq!(
+        format_string_upper("    mov rax, rbx\n"),
+        "    MOV RAX, RBX\n"
+    );
+}
+
+#[test]
+fn test_upper_normalises_size_prefix() {
+    assert_eq!(
+        format_string_upper("    mov byte [rax], 0\n"),
+        "    MOV BYTE [RAX], 0\n"
+    );
+}
+
+#[test]
+fn test_upper_preserves_user_symbols() {
+    // MyLabel is a user symbol, not a register — must not be touched
+    let result = format_string_upper("    call MyLabel\n");
+    assert!(result.contains("CALL"), "mnemonic should be uppercased");
+    assert!(
+        result.contains("MyLabel"),
+        "user symbol should be preserved as-is"
+    );
+}
+
+#[test]
+fn test_upper_normalises_memory_operand() {
+    assert_eq!(
+        format_string_upper("    mov rax, [rbp - 8]\n"),
+        "    MOV RAX, [RBP - 8]\n"
+    );
+}
+
+#[test]
+fn test_upper_normalises_section_directive() {
+    assert_eq!(format_string_upper("section .text\n"), "SECTION .text\n");
+}
+
+#[test]
+fn test_upper_normalises_global_directive() {
+    assert_eq!(format_string_upper("global main\n"), "GLOBAL main\n");
+}
+
+#[test]
+fn test_upper_from_mixed_case_input() {
+    // Input already has mixed case; --upper should normalise regardless
+    assert_eq!(
+        format_string_upper("    MOV Rax, RBX\n"),
+        "    MOV RAX, RBX\n"
+    );
+}
+
+#[test]
+fn test_upper_check_exits_1_for_lowercase_file() {
+    let mut tmp = tempfile::Builder::new().suffix(".s").tempfile().unwrap();
+    tmp.write_all(b"    mov rax, rbx\n").unwrap();
+    let path = tmp.path().to_str().unwrap().to_string();
+    let output = run_nasfmt(&[&path, "--upper", "--check"]);
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "should exit 1 for non-upper file"
+    );
+}
+
+#[test]
+fn test_upper_check_exits_0_for_uppercase_file() {
+    let mut tmp = tempfile::Builder::new().suffix(".s").tempfile().unwrap();
+    tmp.write_all(b"    MOV RAX, RBX\n").unwrap();
+    let path = tmp.path().to_str().unwrap().to_string();
+    let output = run_nasfmt(&[&path, "--upper", "--check"]);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "should exit 0 for already-upper file"
+    );
+}
+
+#[test]
+fn test_upper_default_is_lower() {
+    // Without --upper, output must be lowercase
+    assert_eq!(format_string("    MOV RAX, RBX\n"), "    mov rax, rbx\n");
 }

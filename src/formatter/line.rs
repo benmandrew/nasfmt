@@ -9,13 +9,19 @@ pub(super) fn format_instr_line(
     operands: Option<&str>,
     comment: Option<&str>,
     comment_col: usize,
+    upper: bool,
 ) -> String {
     let indent = " ".repeat(INDENT);
+    let mnemonic_cased = if upper {
+        mnemonic.to_uppercase()
+    } else {
+        mnemonic.to_string()
+    };
     let content = match operands {
         Some(ops) if !ops.is_empty() => {
-            format!("{:<width$}{}", mnemonic, ops, width = mnemonic_width)
+            format!("{:<width$}{}", mnemonic_cased, ops, width = mnemonic_width)
         }
-        _ => mnemonic.to_string(),
+        _ => mnemonic_cased,
     };
     let content_col = INDENT + content.len();
     match comment {
@@ -37,6 +43,7 @@ pub(super) fn format_code_label(
     label: &Label,
     body: Option<&Body>,
     comment: Option<&str>,
+    upper: bool,
 ) -> String {
     let label_str = format!("{}:", label.name);
     let mut out = String::new();
@@ -58,7 +65,7 @@ pub(super) fn format_code_label(
             let ops = if b.operands.is_empty() {
                 None
             } else {
-                Some(format_operands(&b.operands))
+                Some(format_operands(&b.operands, upper))
             };
             let mw = round_up_4(b.mnemonic.len() + 1);
             let cc = if comment.is_some() {
@@ -72,17 +79,27 @@ pub(super) fn format_code_label(
                 ops.as_deref(),
                 comment,
                 cc,
+                upper,
             ));
         }
     }
     out
 }
 
-pub(super) fn format_section_directive(body: &Body, comment: Option<&str>) -> String {
-    let content = if body.operands.is_empty() {
-        body.mnemonic.clone()
+pub(super) fn format_section_directive(body: &Body, comment: Option<&str>, upper: bool) -> String {
+    let mnemonic_cased = if upper {
+        body.mnemonic.to_uppercase()
     } else {
-        format!("{} {}", body.mnemonic, format_operands(&body.operands))
+        body.mnemonic.clone()
+    };
+    let content = if body.operands.is_empty() {
+        mnemonic_cased
+    } else {
+        format!(
+            "{} {}",
+            mnemonic_cased,
+            format_operands(&body.operands, upper)
+        )
     };
     match comment {
         None => format!("{}\n", content),
@@ -137,37 +154,48 @@ mod tests {
 
     #[test]
     fn instr_no_ops_no_comment() {
-        assert_eq!(format_instr_line("ret", 8, None, None, 0), "    ret\n");
+        assert_eq!(
+            format_instr_line("ret", 8, None, None, 0, false),
+            "    ret\n"
+        );
     }
 
     #[test]
     fn instr_with_ops() {
         assert_eq!(
-            format_instr_line("mov", 8, Some("rax, rbx"), None, 0),
+            format_instr_line("mov", 8, Some("rax, rbx"), None, 0, false),
             "    mov     rax, rbx\n"
         );
     }
 
     #[test]
     fn instr_mnemonic_padded_to_width() {
-        // mnemonic_width=4: "mov " + "rax"
         assert_eq!(
-            format_instr_line("mov", 4, Some("rax"), None, 0),
+            format_instr_line("mov", 4, Some("rax"), None, 0, false),
             "    mov rax\n"
         );
     }
 
     #[test]
     fn instr_with_comment_at_col() {
-        // "ret" (3 chars) at col 4+3=7, comment_col=12 → 5 spaces
-        let result = format_instr_line("ret", 4, None, Some("done"), 12);
+        let result = format_instr_line("ret", 4, None, Some("done"), 12, false);
         assert_eq!(result, "    ret     ; done\n");
     }
 
     #[test]
     fn instr_empty_ops_treated_as_no_ops() {
-        // empty string ops → same as None
-        assert_eq!(format_instr_line("ret", 4, Some(""), None, 0), "    ret\n");
+        assert_eq!(
+            format_instr_line("ret", 4, Some(""), None, 0, false),
+            "    ret\n"
+        );
+    }
+
+    #[test]
+    fn instr_mnemonic_uppercased() {
+        assert_eq!(
+            format_instr_line("mov", 8, Some("RAX, RBX"), None, 0, true),
+            "    MOV     RAX, RBX\n"
+        );
     }
 
     // --- format_code_label ---
@@ -175,14 +203,13 @@ mod tests {
     #[test]
     fn code_label_bare() {
         let lbl = label("main");
-        assert_eq!(format_code_label(&lbl, None, None), "main:\n");
+        assert_eq!(format_code_label(&lbl, None, None, false), "main:\n");
     }
 
     #[test]
     fn code_label_with_comment_no_body() {
         let lbl = label("main");
-        let result = format_code_label(&lbl, None, Some("entry point"));
-        // label_str = "main:" (5), cc = 5+4 = 9
+        let result = format_code_label(&lbl, None, Some("entry point"), false);
         assert_eq!(result, "main:    ; entry point\n");
     }
 
@@ -190,8 +217,7 @@ mod tests {
     fn code_label_with_body_no_comment() {
         let lbl = label("init");
         let b = body("mov", &["rax", "0"]);
-        let result = format_code_label(&lbl, Some(&b), None);
-        // mw = round_up_4(3+1) = 4, "mov rax, 0"
+        let result = format_code_label(&lbl, Some(&b), None, false);
         assert_eq!(result, "init:\n    mov rax, 0\n");
     }
 
@@ -199,7 +225,7 @@ mod tests {
     fn code_label_with_body_and_comment() {
         let lbl = label("start");
         let b = body("xor", &["eax", "eax"]);
-        let result = format_code_label(&lbl, Some(&b), Some("zero eax"));
+        let result = format_code_label(&lbl, Some(&b), Some("zero eax"), false);
         assert!(result.starts_with("start:\n"));
         assert!(result.contains("; zero eax"));
     }
@@ -208,8 +234,16 @@ mod tests {
     fn code_label_body_no_operands() {
         let lbl = label("end");
         let b = body("ret", &[]);
-        let result = format_code_label(&lbl, Some(&b), None);
+        let result = format_code_label(&lbl, Some(&b), None, false);
         assert_eq!(result, "end:\n    ret\n");
+    }
+
+    #[test]
+    fn code_label_with_body_uppercased() {
+        let lbl = label("init");
+        let b = body("mov", &["rax", "0"]);
+        let result = format_code_label(&lbl, Some(&b), None, true);
+        assert_eq!(result, "init:\n    MOV RAX, 0\n");
     }
 
     // --- format_section_directive ---
@@ -217,33 +251,41 @@ mod tests {
     #[test]
     fn section_directive_no_operands() {
         let b = body("bits", &[]);
-        assert_eq!(format_section_directive(&b, None), "bits\n");
+        assert_eq!(format_section_directive(&b, None, false), "bits\n");
     }
 
     #[test]
     fn section_directive_with_operand() {
         let b = body("section", &[".text"]);
-        assert_eq!(format_section_directive(&b, None), "section .text\n");
+        assert_eq!(format_section_directive(&b, None, false), "section .text\n");
     }
 
     #[test]
     fn section_directive_global() {
         let b = body("global", &["main"]);
-        assert_eq!(format_section_directive(&b, None), "global main\n");
+        assert_eq!(format_section_directive(&b, None, false), "global main\n");
     }
 
     #[test]
     fn section_directive_with_comment() {
         let b = body("global", &["_start"]);
-        let result = format_section_directive(&b, Some("entry point"));
-        // content = "global _start" (13), cc = 13+4 = 17
+        let result = format_section_directive(&b, Some("entry point"), false);
         assert_eq!(result, "global _start    ; entry point\n");
     }
 
     #[test]
     fn section_directive_extern_multiple_operands() {
         let b = body("extern", &["foo", "bar"]);
-        assert_eq!(format_section_directive(&b, None), "extern foo, bar\n");
+        assert_eq!(
+            format_section_directive(&b, None, false),
+            "extern foo, bar\n"
+        );
+    }
+
+    #[test]
+    fn section_directive_uppercased() {
+        let b = body("section", &[".text"]);
+        assert_eq!(format_section_directive(&b, None, true), "SECTION .text\n");
     }
 
     // --- format_standalone_comment ---

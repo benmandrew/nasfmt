@@ -12,6 +12,7 @@ pub(super) fn flush_block(
     block: &mut Vec<&Line>,
     code_mnemonic_width: usize,
     code_comment_col: usize,
+    upper: bool,
 ) {
     if block.is_empty() {
         return;
@@ -32,20 +33,21 @@ pub(super) fn flush_block(
         .iter()
         .map(|l| match l {
             Line::Statement { body: Some(b), .. } if !b.operands.is_empty() => {
-                Some(format_operands(&b.operands))
+                Some(format_operands(&b.operands, upper))
             }
             _ => None,
         })
         .collect();
 
     if has_data_labels {
-        output.push_str(&format_data_block(block, &fmt_ops));
+        output.push_str(&format_data_block(block, &fmt_ops, upper));
     } else {
         output.push_str(&format_instruction_block(
             block,
             &fmt_ops,
             code_mnemonic_width,
             code_comment_col,
+            upper,
         ));
     }
     block.clear();
@@ -56,6 +58,7 @@ fn format_instruction_block(
     fmt_ops: &[Option<String>],
     mnemonic_width: usize,
     comment_col: usize,
+    upper: bool,
 ) -> String {
     let mut out = String::new();
     for (i, line) in block.iter().enumerate() {
@@ -71,6 +74,7 @@ fn format_instruction_block(
                     fmt_ops[i].as_deref(),
                     comment.as_deref(),
                     comment_col,
+                    upper,
                 ));
             }
             _ => out.push('\n'),
@@ -79,7 +83,13 @@ fn format_instruction_block(
     out
 }
 
-fn format_data_block(block: &[&Line], fmt_ops: &[Option<String>]) -> String {
+struct DataBlockMetrics {
+    label_width: usize,
+    mnemonic_width: usize,
+    comment_col: usize,
+}
+
+fn format_data_block(block: &[&Line], fmt_ops: &[Option<String>], upper: bool) -> String {
     let max_label = block
         .iter()
         .filter_map(|l| match l {
@@ -127,6 +137,12 @@ fn format_data_block(block: &[&Line], fmt_ops: &[Option<String>]) -> String {
         0
     };
 
+    let metrics = DataBlockMetrics {
+        label_width,
+        mnemonic_width,
+        comment_col,
+    };
+
     let mut out = String::new();
     for (i, line) in block.iter().enumerate() {
         match line {
@@ -141,12 +157,11 @@ fn format_data_block(block: &[&Line], fmt_ops: &[Option<String>]) -> String {
             } => {
                 out.push_str(&format_data_label_line(
                     name,
-                    label_width,
-                    mnemonic_width,
+                    &metrics,
                     body.as_ref().map(|b| b.mnemonic.as_str()),
                     fmt_ops[i].as_deref(),
                     comment.as_deref(),
-                    comment_col,
+                    upper,
                 ));
             }
             Line::Statement {
@@ -157,10 +172,11 @@ fn format_data_block(block: &[&Line], fmt_ops: &[Option<String>]) -> String {
             } => {
                 out.push_str(&format_instr_line(
                     &b.mnemonic,
-                    mnemonic_width,
+                    metrics.mnemonic_width,
                     fmt_ops[i].as_deref(),
                     comment.as_deref(),
-                    comment_col,
+                    metrics.comment_col,
+                    upper,
                 ));
             }
             _ => out.push('\n'),
@@ -171,19 +187,28 @@ fn format_data_block(block: &[&Line], fmt_ops: &[Option<String>]) -> String {
 
 fn format_data_label_line(
     name: &str,
-    label_width: usize,
-    mnemonic_width: usize,
+    metrics: &DataBlockMetrics,
     mnemonic: Option<&str>,
     ops: Option<&str>,
     comment: Option<&str>,
-    comment_col: usize,
+    upper: bool,
 ) -> String {
+    let DataBlockMetrics {
+        label_width,
+        mnemonic_width,
+        comment_col,
+    } = *metrics;
     let indent = " ".repeat(INDENT);
     let mut out = indent;
     match mnemonic {
         Some(m) => {
+            let m_cased = if upper {
+                m.to_uppercase()
+            } else {
+                m.to_string()
+            };
             let label_field = format!("{:<width$}", name, width = label_width);
-            let mnemonic_field = format!("{:<width$}", m, width = mnemonic_width);
+            let mnemonic_field = format!("{:<width$}", m_cased, width = mnemonic_width);
             let content = format!("{}{}{}", label_field, mnemonic_field, ops.unwrap_or(""));
             let content_col = INDENT + content.len();
             out.push_str(&content);
@@ -267,7 +292,7 @@ mod tests {
     fn flush_empty_block_no_output() {
         let mut out = String::new();
         let mut block: Vec<&Line> = vec![];
-        flush_block(&mut out, &mut block, 4, 0);
+        flush_block(&mut out, &mut block, 4, 0, false);
         assert_eq!(out, "");
         assert!(block.is_empty());
     }
@@ -277,7 +302,7 @@ mod tests {
         let l = instr("ret", &[]);
         let mut out = String::new();
         let mut block = vec![&l];
-        flush_block(&mut out, &mut block, 4, 0);
+        flush_block(&mut out, &mut block, 4, 0, false);
         assert!(block.is_empty());
     }
 
@@ -286,7 +311,7 @@ mod tests {
         let l = instr("ret", &[]);
         let mut out = String::new();
         let mut block = vec![&l];
-        flush_block(&mut out, &mut block, 4, 0);
+        flush_block(&mut out, &mut block, 4, 0, false);
         assert_eq!(out, "    ret\n");
     }
 
@@ -296,7 +321,7 @@ mod tests {
         let mut out = String::new();
         let mut block = vec![&l];
         // code_mnemonic_width=4: "mov " + "rax, 0"
-        flush_block(&mut out, &mut block, 4, 0);
+        flush_block(&mut out, &mut block, 4, 0, false);
         assert_eq!(out, "    mov rax, 0\n");
     }
 
@@ -308,20 +333,27 @@ mod tests {
         let ret_l = instr("ret", &[]);
         let mut out = String::new();
         let mut block = vec![&push_l, &mov_l, &ret_l];
-        flush_block(&mut out, &mut block, 8, 0);
+        flush_block(&mut out, &mut block, 8, 0, false);
         assert_eq!(out, "    push    rbx\n    mov     rax, 0\n    ret\n");
     }
 
     #[test]
+    fn flush_instruction_block_uppercased() {
+        let push_l = instr("push", &["rbx"]);
+        let ret_l = instr("ret", &[]);
+        let mut out = String::new();
+        let mut block = vec![&push_l, &ret_l];
+        flush_block(&mut out, &mut block, 8, 0, true);
+        assert_eq!(out, "    PUSH    RBX\n    RET\n");
+    }
+
+    #[test]
     fn flush_aligns_comments_in_block() {
-        // "ret" and "xor eax, eax": mnemonic_width=4, max_ops=len("eax, eax")=8
-        // comment_col = 4+0+4+8+4 = 20
         let ret_l = instr_comment("ret", &[], "end");
         let xor_l = instr_comment("xor", &["eax", "eax"], "zero");
         let mut out = String::new();
         let mut block = vec![&ret_l, &xor_l];
-        // Pass the pre-computed global comment_col
-        flush_block(&mut out, &mut block, 4, 20);
+        flush_block(&mut out, &mut block, 4, 20, false);
         for line in out.lines() {
             if line.contains(';') {
                 let semicolon_col = line.find(';').unwrap();
@@ -338,7 +370,7 @@ mod tests {
         let mut out = String::new();
         let mut block = vec![&msg_l, &newline_l];
         // code metrics are irrelevant for data blocks
-        flush_block(&mut out, &mut block, 4, 0);
+        flush_block(&mut out, &mut block, 4, 0, false);
         assert!(out.contains("    msg     "), "msg not padded: {:?}", out);
         assert!(
             out.contains("    newline "),
@@ -355,7 +387,7 @@ mod tests {
         let mut block = vec![&msg_l, &len_l];
         // msg(3), msg_len(7) → label_width = round_up_4(8) = 8
         // db(2), equ(3) → mnemonic_width = round_up_4(4) = 4
-        flush_block(&mut out, &mut block, 4, 0);
+        flush_block(&mut out, &mut block, 4, 0, false);
         assert!(out.contains("db  "), "db not padded: {:?}", out);
         assert!(out.contains("equ "), "equ not padded: {:?}", out);
     }
@@ -365,7 +397,7 @@ mod tests {
         let l = data_comment("x", "db", &["1"], "value");
         let mut out = String::new();
         let mut block = vec![&l];
-        flush_block(&mut out, &mut block, 4, 0);
+        flush_block(&mut out, &mut block, 4, 0, false);
         assert!(out.contains("; value"), "missing comment: {:?}", out);
     }
 }

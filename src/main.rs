@@ -13,6 +13,11 @@ struct Cli {
     files: Vec<std::path::PathBuf>,
     #[arg(long, help = "Check formatting; exit 1 with diff if changes needed")]
     check: bool,
+    #[arg(
+        long,
+        help = "Normalise mnemonics, registers, and size prefixes to UPPER CASE"
+    )]
+    upper: bool,
 }
 
 fn main() {
@@ -25,7 +30,7 @@ fn main() {
             process::exit(2);
         });
         let lines = parser::parse(&source);
-        let formatted = formatter::format(&lines);
+        let formatted = formatter::format(&lines, cli.upper);
         if cli.check {
             if formatted != source {
                 print!(

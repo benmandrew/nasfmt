@@ -72,7 +72,7 @@ fn compute_file_metrics(lines: &[Line]) -> FileMetrics {
                     let content = if b.operands.is_empty() {
                         INDENT + b.mnemonic.len()
                     } else {
-                        INDENT + code_mnemonic_width + format_operands(&b.operands).len()
+                        INDENT + code_mnemonic_width + format_operands(&b.operands, false).len()
                     };
                     Some(content)
                 }
@@ -135,7 +135,7 @@ fn comment_indent_for(lines: &[Line], pos: usize) -> Option<usize> {
     None
 }
 
-pub fn format(lines: &[Line]) -> String {
+pub fn format(lines: &[Line], upper: bool) -> String {
     let FileMetrics {
         code_mnemonic_width,
         code_comment_col,
@@ -150,6 +150,7 @@ pub fn format(lines: &[Line]) -> String {
                     &mut current_block,
                     code_mnemonic_width,
                     code_comment_col,
+                    upper,
                 );
                 output.push('\n');
             }
@@ -159,6 +160,7 @@ pub fn format(lines: &[Line]) -> String {
                     &mut current_block,
                     code_mnemonic_width,
                     code_comment_col,
+                    upper,
                 );
                 output.push_str(s);
                 output.push('\n');
@@ -169,6 +171,7 @@ pub fn format(lines: &[Line]) -> String {
                     &mut current_block,
                     code_mnemonic_width,
                     code_comment_col,
+                    upper,
                 );
                 let effective_indent = if is_comment_continuation(lines, i, *indent) {
                     *indent
@@ -187,11 +190,13 @@ pub fn format(lines: &[Line]) -> String {
                     &mut current_block,
                     code_mnemonic_width,
                     code_comment_col,
+                    upper,
                 );
                 output.push_str(&line::format_code_label(
                     lbl,
                     body.as_ref(),
                     comment.as_deref(),
+                    upper,
                 ));
             }
             Line::Statement {
@@ -204,8 +209,13 @@ pub fn format(lines: &[Line]) -> String {
                     &mut current_block,
                     code_mnemonic_width,
                     code_comment_col,
+                    upper,
                 );
-                output.push_str(&line::format_section_directive(b, comment.as_deref()));
+                output.push_str(&line::format_section_directive(
+                    b,
+                    comment.as_deref(),
+                    upper,
+                ));
             }
             _ => {
                 current_block.push(ln);
@@ -217,6 +227,7 @@ pub fn format(lines: &[Line]) -> String {
         &mut current_block,
         code_mnemonic_width,
         code_comment_col,
+        upper,
     );
     output
 }
