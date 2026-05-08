@@ -1,6 +1,7 @@
 # nasfmt
 
-![Coverage](docs/coverage.svg)
+![Crates.io Version](https://img.shields.io/crates/v/nasfmt)
+ ![Coverage](docs/coverage.svg)
 
 Code formatter for NASM x86-64 assembly.
 
