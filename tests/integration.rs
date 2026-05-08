@@ -6,7 +6,7 @@ use std::process::Command;
 const EXAMPLES: &[&str] = &["board.s", "hello.s", "main.s", "memory.s", "util.s"];
 
 fn get_example_path(name: &str) -> String {
-    format!("tests/resources/{}", name)
+    format!("tests/resources/{name}")
 }
 
 fn run_nasfmt(args: &[&str]) -> std::process::Output {
@@ -21,7 +21,7 @@ fn format_string(input: &str) -> String {
     tmp.write_all(input.as_bytes()).unwrap();
     let path = tmp.path().to_str().unwrap().to_string();
     let output = run_nasfmt(&[&path]);
-    assert!(output.status.success(), "nasfmt failed on: {:?}", input);
+    assert!(output.status.success(), "nasfmt failed on: {input:?}");
     String::from_utf8(output.stdout).unwrap()
 }
 
@@ -32,8 +32,7 @@ fn format_string_upper(input: &str) -> String {
     let output = run_nasfmt(&[&path, "--upper"]);
     assert!(
         output.status.success(),
-        "nasfmt --upper failed on: {:?}",
-        input
+        "nasfmt --upper failed on: {input:?}"
     );
     String::from_utf8(output.stdout).unwrap()
 }
@@ -46,8 +45,7 @@ fn test_examples_format_clean() {
         let path = get_example_path(file);
         assert!(
             Path::new(&path).exists(),
-            "Example file {} does not exist",
-            path
+            "Example file {path} does not exist"
         );
         let output = run_nasfmt(&[&path, "--check"]);
         assert!(
@@ -66,12 +64,11 @@ fn test_examples_format_idempotent() {
         let path = get_example_path(file);
         let orig = fs::read_to_string(&path).expect("Failed to read example file");
         let output = run_nasfmt(&[&path]);
-        assert!(output.status.success(), "nasfmt failed for {}", path);
+        assert!(output.status.success(), "nasfmt failed for {path}");
         let formatted = String::from_utf8_lossy(&output.stdout);
         assert_eq!(
             orig, formatted,
-            "nasfmt output is not idempotent for {}",
-            path
+            "nasfmt output is not idempotent for {path}"
         );
     }
 }
@@ -208,7 +205,7 @@ fn test_format_aligns_comments_in_block() {
     for line in result.lines() {
         if line.contains(';') {
             let col = line.find(';').unwrap();
-            assert_eq!(col, 20, "comment not at col 20: {:?}", line);
+            assert_eq!(col, 20, "comment not at col 20: {line:?}");
         }
     }
 }
@@ -283,8 +280,7 @@ fn test_standalone_comment_before_label_not_indented() {
     let result = format_string(input);
     assert!(
         result.starts_with("; entry point\n"),
-        "comment before label should have no indent, got: {:?}",
-        result
+        "comment before label should have no indent, got: {result:?}"
     );
 }
 
@@ -295,8 +291,7 @@ fn test_standalone_comment_before_instruction_indented() {
     let result = format_string(input);
     assert!(
         result.contains("    ; initialise\n"),
-        "comment before instruction should be indented 4 spaces, got: {:?}",
-        result
+        "comment before instruction should be indented 4 spaces, got: {result:?}"
     );
 }
 
@@ -307,8 +302,7 @@ fn test_standalone_comment_before_label_across_blank_line() {
     let result = format_string(input);
     assert!(
         result.starts_with("; describe function\n"),
-        "comment before label (across blank) should have no indent, got: {:?}",
-        result
+        "comment before label (across blank) should have no indent, got: {result:?}"
     );
 }
 
@@ -335,8 +329,7 @@ fn test_standalone_comment_before_section_directive_not_indented() {
     let result = format_string(input);
     assert!(
         result.starts_with("; data section\n"),
-        "comment before section directive should have no indent, got: {:?}",
-        result
+        "comment before section directive should have no indent, got: {result:?}"
     );
 }
 
@@ -346,8 +339,7 @@ fn test_standalone_comment_before_preprocessor_not_indented() {
     let result = format_string(input);
     assert!(
         result.starts_with("; define size\n"),
-        "comment before preprocessor should have no indent, got: {:?}",
-        result
+        "comment before preprocessor should have no indent, got: {result:?}"
     );
 }
 

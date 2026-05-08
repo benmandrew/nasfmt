@@ -19,13 +19,13 @@ pub(super) fn format_instr_line(
     };
     let content = match operands {
         Some(ops) if !ops.is_empty() => {
-            format!("{:<width$}{}", mnemonic_cased, ops, width = mnemonic_width)
+            format!("{mnemonic_cased:<mnemonic_width$}{ops}")
         }
         _ => mnemonic_cased,
     };
     let content_col = INDENT + content.len();
     match comment {
-        None => format!("{}{}\n", indent, content),
+        None => format!("{indent}{content}\n"),
         Some(c) => {
             let spaces = spacing(content_col, comment_col);
             format!(
@@ -102,7 +102,7 @@ pub(super) fn format_section_directive(body: &Body, comment: Option<&str>, upper
         )
     };
     match comment {
-        None => format!("{}\n", content),
+        None => format!("{content}\n"),
         Some(c) => {
             let cc = content.len() + 4;
             format!(
@@ -118,16 +118,16 @@ pub(super) fn format_section_directive(body: &Body, comment: Option<&str>, upper
 pub(super) fn format_standalone_comment(indent: usize, text: &str) -> String {
     let prefix = " ".repeat(indent);
     if text.is_empty() {
-        return format!("{};\n", prefix);
+        return format!("{prefix};\n");
     }
     let available = MAX_WIDTH.saturating_sub(indent + 2);
     if text.len() <= available {
-        return format!("{}; {}\n", prefix, text);
+        return format!("{prefix}; {text}\n");
     }
     let chunks = wrap_words(text, available);
     chunks
         .into_iter()
-        .map(|chunk| format!("{}; {}\n", prefix, chunk))
+        .map(|chunk| format!("{prefix}; {chunk}\n"))
         .collect()
 }
 
@@ -313,7 +313,7 @@ mod tests {
         let result = format_standalone_comment(0, &text);
         assert!(result.contains('\n'));
         for line in result.lines() {
-            assert!(line.len() <= 80, "line too long: {:?}", line);
+            assert!(line.len() <= 80, "line too long: {line:?}");
         }
     }
 

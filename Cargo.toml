@@ -1,6 +1,6 @@
 [package]
 name = "nasfmt"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 description = "Code formatter for NASM x86-64 assembly"
 license = "MIT"
@@ -8,7 +8,7 @@ repository = "https://github.com/benmandrew/nasfmt"
 readme = "README.md"
 keywords = ["nasm", "assembly", "formatter", "x86-64"]
 categories = ["command-line-utilities", "development-tools"]
-rust-version = "1.95"
+rust-version = "1.88"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

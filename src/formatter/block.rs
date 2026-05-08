@@ -207,8 +207,8 @@ fn format_data_label_line(
             } else {
                 m.to_string()
             };
-            let label_field = format!("{:<width$}", name, width = label_width);
-            let mnemonic_field = format!("{:<width$}", m_cased, width = mnemonic_width);
+            let label_field = format!("{name:<label_width$}");
+            let mnemonic_field = format!("{m_cased:<mnemonic_width$}");
             let content = format!("{}{}{}", label_field, mnemonic_field, ops.unwrap_or(""));
             let content_col = INDENT + content.len();
             out.push_str(&content);
@@ -357,7 +357,7 @@ mod tests {
         for line in out.lines() {
             if line.contains(';') {
                 let semicolon_col = line.find(';').unwrap();
-                assert_eq!(semicolon_col, 20, "comment not at col 20 in: {:?}", line);
+                assert_eq!(semicolon_col, 20, "comment not at col 20 in: {line:?}");
             }
         }
     }
@@ -371,12 +371,8 @@ mod tests {
         let mut block = vec![&msg_l, &newline_l];
         // code metrics are irrelevant for data blocks
         flush_block(&mut out, &mut block, 4, 0, false);
-        assert!(out.contains("    msg     "), "msg not padded: {:?}", out);
-        assert!(
-            out.contains("    newline "),
-            "newline not padded: {:?}",
-            out
-        );
+        assert!(out.contains("    msg     "), "msg not padded: {out:?}");
+        assert!(out.contains("    newline "), "newline not padded: {out:?}");
     }
 
     #[test]
@@ -388,8 +384,8 @@ mod tests {
         // msg(3), msg_len(7) → label_width = round_up_4(8) = 8
         // db(2), equ(3) → mnemonic_width = round_up_4(4) = 4
         flush_block(&mut out, &mut block, 4, 0, false);
-        assert!(out.contains("db  "), "db not padded: {:?}", out);
-        assert!(out.contains("equ "), "equ not padded: {:?}", out);
+        assert!(out.contains("db  "), "db not padded: {out:?}");
+        assert!(out.contains("equ "), "equ not padded: {out:?}");
     }
 
     #[test]
@@ -398,6 +394,6 @@ mod tests {
         let mut out = String::new();
         let mut block = vec![&l];
         flush_block(&mut out, &mut block, 4, 0, false);
-        assert!(out.contains("; value"), "missing comment: {:?}", out);
+        assert!(out.contains("; value"), "missing comment: {out:?}");
     }
 }

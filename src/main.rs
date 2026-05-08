@@ -47,7 +47,7 @@ fn main() {
                 });
             }
         } else {
-            print!("{}", formatted);
+            print!("{formatted}");
         }
     }
     process::exit(exit_code);

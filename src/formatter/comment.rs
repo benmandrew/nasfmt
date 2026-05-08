@@ -6,7 +6,7 @@ pub(super) fn inline_comment(text: &str, comment_col: usize) -> String {
     }
     let available = MAX_WIDTH.saturating_sub(comment_col + 2);
     if available == 0 || text.len() <= available {
-        return format!("; {}", text);
+        return format!("; {text}");
     }
     let chunks = wrap_words(text, available);
     let cont = format!("\n{}; ", " ".repeat(comment_col));
@@ -36,7 +36,7 @@ mod tests {
     fn text_fits_exactly_at_available_width() {
         // available = 80 - 10 - 2 = 68
         let text = "a".repeat(68);
-        assert_eq!(inline_comment(&text, 10), format!("; {}", text));
+        assert_eq!(inline_comment(&text, 10), format!("; {text}"));
     }
 
     #[test]
@@ -44,7 +44,7 @@ mod tests {
         // available = 80 - 10 - 2 = 68; text of 69 chars must wrap
         let text = "word ".repeat(14).trim().to_string(); // > 68 chars
         let result = inline_comment(&text, 10);
-        assert!(result.contains('\n'), "should wrap but got: {:?}", result);
+        assert!(result.contains('\n'), "should wrap but got: {result:?}");
     }
 
     #[test]
