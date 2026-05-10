@@ -10,8 +10,6 @@ Code formatter for NASM x86-64 assembly.
 $ cargo install nasfmt
 ```
 
-Requires Rust 1.95 or later.
-
 ## Usage
 
 Format a file in place:
